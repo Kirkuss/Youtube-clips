@@ -76,6 +76,7 @@ class WorkQueue(Thread):
     def run(self):
         '''Task dispatcher loop'''
         for job in iter(self.queue.get, self.QUIT):
+			
             job.download()
             self.queue.task_done()
 
@@ -106,7 +107,7 @@ class Job:
 
     def download(self):
         '''Donwload clip'''
-        self.callback.set_result(_download_mp3_(self.url))
+        self.callback.ice_response(_download_mp3_(self.url))
 
     def cancel(self):
         '''Cancel donwload'''

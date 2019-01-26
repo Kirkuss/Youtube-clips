@@ -10,6 +10,13 @@ import sys
 
 from work_queue import *
 
+"""
+class SchedulerFactoryI(Downloader.SchedulerFactory):
+	def make(self, name, current=None):
+		servant = DownloadSchedulerI(work_queue)
+		proxy = current.adapter.addWithUUID(servant)
+		return Downloader.DownloadSchedulerPrx.checkedCast(proxy)
+"""
 
 class DownloadSchedulerI(Downloader.DownloadScheduler):
 	def __init__(self, work_queue):
@@ -18,6 +25,10 @@ class DownloadSchedulerI(Downloader.DownloadScheduler):
 	def addDownloadTask_async(self, cb, url, current=None):
 		self.work_queue.add(cb, url)
 
+	def get(self, song, current=None):
+		self.transfer = TransferI(song)
+		return self.transfer
+		
 	def cancelTask(self, url, current=None):
 		print("{0} recibido".format(url))
 		sys.stdout.flush()
@@ -38,6 +49,7 @@ class Server(Ice.Application):
 		work_queue = WorkQueue()
 		broker = self.communicator()
 		servant = DownloadSchedulerI(work_queue)
+		"""transferServant = TransferI("Noisestorm - Crab Rave [Monstercat Release].mp3")"""
 		
 		adapter = broker.createObjectAdapter("SchedulerAdapter")
 		proxy = adapter.add(servant, broker.stringToIdentity("Scheduler1"))

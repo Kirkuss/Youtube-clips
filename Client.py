@@ -20,11 +20,15 @@ class DownloaderCB(object):
 
 
 class Client(Ice.Application):
-	def sendURL(self, scheduler, cb):		
+	def sendURL(self, scheduler):		
 		url = "http://www.youtube.com/watch?v=LDU_Txk06tM"
 		"""url = input("URL to download: ")"""	
 		print("enviando")
-		scheduler.begin_addDownloadTask(url, cb.response, cb.failure)
+		handler = scheduler.begin_addDownloadTask(url)
+
+		while not handler.isSent():
+			time.sleep(0.1)
+
 		print("donete")
 
 		return 0
@@ -32,6 +36,7 @@ class Client(Ice.Application):
 	def run(self, argv):
 		proxy = self.communicator().stringToProxy(argv[1])
 		scheduler = Downloader.DownloadSchedulerPrx.checkedCast(proxy)
+		"""transferCtrl = Downloader.TransferPrx.checkedCast(proxy)"""
 
 		if not scheduler:
 			raise RuntimeError('Invalid proxy')
@@ -49,12 +54,13 @@ class Client(Ice.Application):
 			print("Press any number to exit")
 			option = int(input("Choose an option from the menu: "))
 			if option == 1:
-				self.sendURL(scheduler, downloader_cb)
+				self.sendURL(scheduler)
 			elif option == 2:
 				continue
 			elif option == 3:
-				"""receive()"""
-				continue
+				"""transfer = scheduler.begin_get('Noisestorm - Crab Rave [Monstercat Release].mp3',downloader_cb.response, downloader_cb.failure)"""
+				transfer = scheduler.get('Noisestorm - Crab Rave [Monstercat Release].mp3')
+				self.receive(transfer, 'hola.mp3')
 			elif option == 4:
 				continue
 			else:
@@ -67,6 +73,7 @@ class Client(Ice.Application):
 		with open(destination_file, 'wb') as file_contents:
 			remoteEOF = False
 			while not remoteEOF:
+				print("HOLA JJEJEJ")
 				data = transfer.recv(BLOCK_SIZE)
 				if len(data) > 1:
 					data = data[1:]
