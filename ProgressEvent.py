@@ -1,23 +1,19 @@
-#!/usr/bin/python -u
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 import Ice
 import IceStorm
 Ice.loadSlice('downloader.ice')
 import Downloader
+import sys
 
-from enum import Enum
+import enum
 
-Status = Enum('PENDING','INPROGRESS','DONE','ERROR')
-
-class ClipData(object):
-	def __init__(self, URL="", status=Status.PENDING):
-		self.url = URL
-		self.status = status
+"""Status = Enum('PENDING','INPROGRESS','DONE','ERROR')"""
 	
 class ProgressEventI(Downloader.ProgressEvent):
-	def __init__(self):
-		self.clips = {}
+	
+	clips = {}
 	
 	def notify(self, ClipData):
 		print("notification from {0}".format(ClipData.url))	

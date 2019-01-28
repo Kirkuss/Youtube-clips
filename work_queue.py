@@ -18,6 +18,18 @@ Ice.loadSlice('downloader.ice')
 # pylint: disable=E0401
 import Downloader
 
+from enum import Enum
+
+class Status(Enum):
+	PENDING = 'PENDING'
+	INPROGRESS = 'INPROGRESS'
+	DONE = 'DONE'
+	ERROR = 'ERROR'
+
+class ClipData(object):
+	def __init__(self, URL, status):
+		self.url = URL
+		self.status = status
 
 class NullLogger:
     '''
@@ -65,38 +77,41 @@ def _download_mp3_(url, destination='./'):
 
 
 class WorkQueue(Thread):
-    '''Job Queue to dispatch tasks'''
-    QUIT = 'QUIT'
-    CANCEL = 'CANCEL'
+	'''Job Queue to dispatch tasks'''
+	QUIT = 'QUIT'
+	CANCEL = 'CANCEL'
 
-    def __init__(self):
-        super(WorkQueue, self).__init__()
-        self.queue = Queue()
+	def __init__(self):
+		super(WorkQueue, self).__init__()
+		self.queue = Queue()
+		self.progress = None
 
-    def run(self):
-        '''Task dispatcher loop'''
-        for job in iter(self.queue.get, self.QUIT):
-			
-            job.download()
-            self.queue.task_done()
+	def run(self):
+		'''Task dispatcher loop'''
+		for job in iter(self.queue.get, self.QUIT):		
+			job.download()
+			self.queue.task_done()
 
-        self.queue.task_done()
-        self.queue.put(self.CANCEL)
+		self.queue.task_done()
+		self.queue.put(self.CANCEL)
 
-        for job in iter(self.queue.get, self.CANCEL):
-            job.cancel()
-            self.queue.task_done()
+		for job in iter(self.queue.get, self.CANCEL):
+			job.cancel()
+			self.queue.task_done()
 
-        self.queue.task_done()
+		self.queue.task_done()
 
-    def add(self, callback, url):
-        '''Add new task to queue'''
-        self.queue.put(Job(callback, url))
+	def add(self, callback, url, progress):
+		'''Add new task to queue'''
+		self.progress = progress
+		self.clipData = ClipData(url, Status.PENDING)
+		self.progress.notify(self.clipData)
+		self.queue.put(Job(callback, url))
 
-    def destroy(self):
-        '''Cancel tasks queue'''
-        self.queue.put(self.QUIT)
-        self.queue.join()
+	def destroy(self):
+		'''Cancel tasks queue'''
+		self.queue.put(self.QUIT)
+		self.queue.join()
 
 
 class Job:
