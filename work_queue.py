@@ -18,18 +18,7 @@ Ice.loadSlice('downloader.ice')
 # pylint: disable=E0401
 import Downloader
 
-from enum import Enum
-
-class Status(Enum):
-	PENDING = 'PENDING'
-	INPROGRESS = 'INPROGRESS'
-	DONE = 'DONE'
-	ERROR = 'ERROR'
-
-class ClipData(object):
-	def __init__(self, URL, status):
-		self.url = URL
-		self.status = status
+songs = []
 
 class NullLogger:
     '''
@@ -73,6 +62,7 @@ def _download_mp3_(url, destination='./'):
     filename = task_status['filename']
     # BUG: filename extension is wrong, it must be mp3
     filename = filename[:filename.rindex('.') + 1]
+    songs.append(filename + options['postprocessors'][0]['preferredcodec'])
     return filename + options['postprocessors'][0]['preferredcodec']
 
 
@@ -81,16 +71,30 @@ class WorkQueue(Thread):
 	QUIT = 'QUIT'
 	CANCEL = 'CANCEL'
 
-	def __init__(self):
+	def __init__(self, progress):
 		super(WorkQueue, self).__init__()
 		self.queue = Queue()
-		self.progress = None
+		self.progress = progress
 
 	def run(self):
 		'''Task dispatcher loop'''
-		for job in iter(self.queue.get, self.QUIT):		
-			job.download()
-			self.queue.task_done()
+		for job in iter(self.queue.get, self.QUIT):
+			status_data = Downloader.ClipData()
+			status_data.URL = job.url
+			status_data.status = Downloader.Status.INPROGRESS	
+			self.progress.notify(status_data)
+			try:
+				job.download()
+				status_data = Downloader.ClipData()
+				status_data.URL = job.url
+				status_data.status = Downloader.Status.DONE	
+				self.progress.notify(status_data)
+				self.queue.task_done()
+			except Exception as e:
+				status_data = Downloader.ClipData()
+				status_data.URL = job.url
+				status_data.status = Downloader.Status.ERROR	
+				self.progress.notify(status_data)
 
 		self.queue.task_done()
 		self.queue.put(self.CANCEL)
@@ -101,17 +105,21 @@ class WorkQueue(Thread):
 
 		self.queue.task_done()
 
-	def add(self, callback, url, progress):
+	def add(self, callback, url):
 		'''Add new task to queue'''
-		self.progress = progress
-		self.clipData = ClipData(url, Status.PENDING)
-		self.progress.notify(self.clipData)
+		status_data = Downloader.ClipData()
+		status_data.URL = url
+		status_data.status = Downloader.Status.PENDING
 		self.queue.put(Job(callback, url))
+		self.progress.notify(status_data)
 
 	def destroy(self):
 		'''Cancel tasks queue'''
 		self.queue.put(self.QUIT)
 		self.queue.join()
+		
+	def getSongs(self):
+		return songs
 
 
 class Job:

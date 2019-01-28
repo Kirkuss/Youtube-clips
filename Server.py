@@ -33,13 +33,12 @@ class SchedulerFactoryI(Downloader.SchedulerFactory):
 
 	schedulers = {}
 	
-	def __init__(self, work_queue, broker, progress):
+	def __init__(self, work_queue, broker):
 		self.work_queue = work_queue
 		self.broker = broker
-		self.progress = progress
 
 	def make(self, name, current=None):
-		servant = DownloadSchedulerI(self.work_queue, self.progress)
+		servant = DownloadSchedulerI(self.work_queue)
 		if name in self.schedulers:
 			print("That scheduler already exists")
 			return Downloader.DownloadSchedulerPrx.checkedCast(self.schedulers[name])
@@ -57,20 +56,28 @@ class SchedulerFactoryI(Downloader.SchedulerFactory):
 		return len(self.schedulers)
 
 class DownloadSchedulerI(Downloader.DownloadScheduler):
-	def __init__(self, work_queue, progress):
+	def __init__(self, work_queue):
 		self.work_queue = work_queue
-		self.progress = progress
+		self.songs = {}
 
 	def addDownloadTask_async(self, cb, url, current=None):
-		self.work_queue.add(cb, url, self.progress)
+		print("New download request received!")
+		self.work_queue.add(cb, url)
+		print(cb)
 
 	def get(self, song, current=None):
 		servant = TransferI(song)
 		proxy = current.adapter.addWithUUID(servant)
 		return Downloader.TransferPrx.checkedCast(proxy)
 		
+	def getSongList(self, current=None):
+		return self.work_queue.getSongs()
+		
 	def cancelTask(self, url, current=None):
-		print("{0} recibido".format(url))
+		status_data = Downloader.ClipData()
+		status_data.URL = url
+		status_data.status = Downloader.Status.PENDING
+		"""self.progress.notify(status_data)"""
 		sys.stdout.flush()
 
 class TransferI(Downloader.Transfer):
@@ -95,8 +102,6 @@ class Server(Ice.Application):
 
 	def run(self, args):
 
-		work_queue = WorkQueue()
-
 		topic_mgr = self.get_topic_manager()
 		if not topic_mgr:
 			print('invalid proxy')
@@ -113,12 +118,17 @@ class Server(Ice.Application):
 		
 		if progress is None:
 			print("UY")
+			
+		work_queue = WorkQueue(progress)
 
 		ic = self.communicator()
 		properties = ic.getProperties()
 		adapter = ic.createObjectAdapter("FactoryAdapter")
-		servant = SchedulerFactoryI(work_queue, ic,  progress)
+		servant = SchedulerFactoryI(work_queue, ic)
 		proxy = adapter.add(servant, ic.stringToIdentity("Factory1"))
+		
+		work_queue.start()
+		
 		adapter.activate()
 		print(proxy, flush=True)
 		self.shutdownOnInterrupt()
