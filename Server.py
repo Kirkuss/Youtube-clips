@@ -11,24 +11,6 @@ import sys
 
 from work_queue import *
 
-"""
-class SchedulerFactoryI(Downloader.SchedulerFactory):
-	def make(self, name, current=None):
-		servant = DownloadSchedulerI(work_queue)
-		proxy = current.adapter.addWithUUID(servant)
-		return Downloader.DownloadSchedulerPrx.checkedCast(proxy)
-"""
-
-"""class ProgressEventI(Downloader.ProgressEvent):
-	def __init__(self):
-		self.clips = {}
-		
-	def notify(self, ClipData):
-		print("notification from {0}".format(ClipData.url))
-		self.clips[ClipData.url] = ClipData.status
-		print(self.clips)
-		sys.stdout.flush()"""
-
 class SchedulerFactoryI(Downloader.SchedulerFactory):
 
 	schedulers = {}
@@ -63,7 +45,6 @@ class DownloadSchedulerI(Downloader.DownloadScheduler):
 	def addDownloadTask_async(self, cb, url, current=None):
 		print("New download request received!")
 		self.work_queue.add(cb, url)
-		print(cb)
 
 	def get(self, song, current=None):
 		servant = TransferI(song)
@@ -72,13 +53,6 @@ class DownloadSchedulerI(Downloader.DownloadScheduler):
 		
 	def getSongList(self, current=None):
 		return self.work_queue.getSongs()
-		
-	def cancelTask(self, url, current=None):
-		status_data = Downloader.ClipData()
-		status_data.URL = url
-		status_data.status = Downloader.Status.PENDING
-		"""self.progress.notify(status_data)"""
-		sys.stdout.flush()
 
 class TransferI(Downloader.Transfer):
 	def __init__(self, local_filename):
@@ -117,7 +91,7 @@ class Server(Ice.Application):
 		progress = Downloader.ProgressEventPrx.uncheckedCast(publisher)
 		
 		if progress is None:
-			print("UY")
+			print("Progress topic  not found")
 			
 		work_queue = WorkQueue(progress)
 
@@ -135,28 +109,6 @@ class Server(Ice.Application):
 		ic.waitForShutdown()
 
 		return 0
-
-		"""work_queue = WorkQueue()
-		broker = self.communicator()
-		servant = SchedulerFactoryI(work_queue, broker)
-		transferServant = TransferI("Noisestorm - Crab Rave [Monstercat Release].mp3")
-		
-		adapter = broker.createObjectAdapter("FactoryAdapter")
-		proxy = adapter.add(servant, broker.stringToIdentity("Factory1"))
-		
-		print(proxy, flush=True)
-	
-		adapter.activate()
-		print("adapter activated")
-
-		work_queue.start()
-
-		self.shutdownOnInterrupt()
-		broker.waitForShutdown()
-
-		work_queue.destroy()
-
-		return 0"""
 
 if __name__ == '__main__':
 	app = Server()

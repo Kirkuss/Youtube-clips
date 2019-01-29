@@ -11,19 +11,10 @@ import Downloader
 import IceStorm
 import os
 
-BLOCK_SIZE = 10240
-
-"""class DownloaderCB(object):
-	def response(self, retval):
-		print("Callback: Value: {0}".format(retval))
+BLOCK_SIZE = 10240	
 	
-	def failure(self, ex):
-		print("Ex: {0}".format(ex))"""
-		
-class ProgressEventI(Downloader.ProgressEvent):
-	
-	clips = {}
-	
+class ProgressEventI(Downloader.ProgressEvent):	
+	clips = {}	
 	def notify(self, ClipData, current=None):
 		self.clips[ClipData.URL] = ClipData.status
 		print("Clip {0} actually in: {1}".format(ClipData.URL, ClipData.status))
@@ -43,7 +34,7 @@ class Client(Ice.Application):
 		print("using IceStorm in '%s'" % key)
 		return IceStorm.TopicManagerPrx.checkedCast(proxy)
 		
-	def conn_IceStorm(self, url):
+	def conn_IceStorm(self):
 		topic_mgr = self.get_topic_manager()
 		if not topic_mgr:
 			print(': invalid proxy')
@@ -62,7 +53,7 @@ class Client(Ice.Application):
 			topic = topic_mgr.create(topic_name)
 			
 		topic.subscribeAndGetPublisher(qos, subscriber)
-		print("Showing info about: {} progress".format(url))
+		print("Showing info about download progress\nUse Ctrl + c to stop tracking")
 		
 		adapter.activate()
 		
@@ -71,17 +62,21 @@ class Client(Ice.Application):
 		topic.unsubscribe(subscriber)
 		return 0
 
-	def sendURL(self, scheduler):		
-		url = "http://www.youtube.com/watch?v=LDU_Txk06tM"
-		"""url = input("URL to download: ")"""	
-		print("enviando")
-		downloader = scheduler.make("Scheduler10")
-		handler = downloader.begin_addDownloadTask(url)
+	def sendURL(self, scheduler):	
+		print("There are {} schedulers actually in this Server".format(scheduler.availableSchedulers()))	
+	
+		url = input("\nURL to download-->")
+		name = "Scheduler{}".format(os.getpid())
+		downloader = scheduler.make(name)
+		try:
+			handler = downloader.begin_addDownloadTask(url)
+		except Exception as e:
+			print("Something went wrong")
 
 		while not handler.isSent():
 			time.sleep(0.1)
 
-		print("A download request for url: {} was sent to the server!".format(url))
+		print("A download request for url: {0} was sent to the server using {1} scheduler!".format(url, name))
 
 		return 0
 
@@ -89,12 +84,9 @@ class Client(Ice.Application):
 		proxy = self.communicator().stringToProxy(argv[1])
 		print(proxy)
 		factory = Downloader.SchedulerFactoryPrx.checkedCast(proxy)
-		"""transferCtrl = Downloader.TransferPrx.checkedCast(proxy)"""
 
 		if not factory:
 			raise RuntimeError('Invalid proxy')
-
-		"""downloader_cb = DownloaderCB()"""
 
 		option = 1
 		
@@ -109,7 +101,7 @@ class Client(Ice.Application):
 			if option == 1:
 				self.sendURL(factory)
 			elif option == 2:
-				self.conn_IceStorm("http://www.youtube.com/watch?v=LDU_Txk06tM")
+				self.conn_IceStorm()
 				continue
 			elif option == 3:
 				self.askForSong(factory)
@@ -127,7 +119,7 @@ class Client(Ice.Application):
 		songTT = int(input("Type in the song you want to transfer (indicating number)-->"))
 		songTTStr = self.songList[songTT]
 		songTTStr = songTTStr[2:]
-		fact = scheduler.make("Transfer{}".format(os.getpid))
+		fact = scheduler.make("Transfer{}".format(os.getpid()))
 		target = input("\nType a name for the file-->")
 		target = target + ".mp3"
 		transfer = fact.get(songTTStr)

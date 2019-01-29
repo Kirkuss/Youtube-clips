@@ -24,7 +24,8 @@ module Downloader {
   // Downloads scheduler
   interface DownloadScheduler {
     SongList getSongList();
-    ["amd", "ami"] void addDownloadTask(string url) throws SchedulerCancelJob;
+    //["amd", "ami"] 
+    ["ami", "amd"] void addDownloadTask(string url) throws SchedulerCancelJob;
     ["ami"] Transfer* get(string song);
     // Optional
     void cancelTask(string url);
