@@ -20,10 +20,12 @@ import Downloader
 
 songs = []
 
+
 class NullLogger:
     '''
     Logger used to disable youtube-dl output
     '''
+
     def debug(self, msg):
         '''Ignore debug messages'''
 
@@ -52,6 +54,7 @@ def _download_mp3_(url, destination='./'):
     '''
     options = {}
     task_status = {}
+
     def progress_hook(status):
         task_status.update(status)
     options.update(DOWNLOADER_OPTS)
@@ -67,63 +70,64 @@ def _download_mp3_(url, destination='./'):
 
 
 class WorkQueue(Thread):
-	'''Job Queue to dispatch tasks'''
-	QUIT = 'QUIT'
-	CANCEL = 'CANCEL'
+    '''Job Queue to dispatch tasks'''
+    QUIT = 'QUIT'
+    CANCEL = 'CANCEL'
 
-	def __init__(self, progress):
-		super(WorkQueue, self).__init__()
-		self.queue = Queue()
-		self.progress = progress
+    def __init__(self, progress):
+        super(WorkQueue, self).__init__()
+        self.queue = Queue()
+        self.progress = progress
 
-	def run(self):
-		'''Task dispatcher loop'''
-		for job in iter(self.queue.get, self.QUIT):
-			status_data = Downloader.ClipData()
-			status_data.URL = job.url
-			status_data.status = Downloader.Status.INPROGRESS	
-			self.progress.notify(status_data)
-			try:
-				job.download()
-				status_data = Downloader.ClipData()
-				status_data.URL = job.url
-				status_data.status = Downloader.Status.DONE	
-				self.progress.notify(status_data)
-				self.queue.task_done()
-			except Exception as e:
-				status_data = Downloader.ClipData()
-				status_data.URL = job.url
-				status_data.status = Downloader.Status.ERROR	
-				self.progress.notify(status_data)
+    def run(self):
+        '''Task dispatcher loop'''
+        for job in iter(self.queue.get, self.QUIT):
+            status_data = Downloader.ClipData()
+            status_data.URL = job.url
+            status_data.status = Downloader.Status.INPROGRESS
+            self.progress.notify(status_data)
+            try:
+                job.download()
+                status_data = Downloader.ClipData()
+                status_data.URL = job.url
+                status_data.status = Downloader.Status.DONE
+                self.progress.notify(status_data)
+                self.queue.task_done()
+            except Exception as e:
+                status_data = Downloader.ClipData()
+                status_data.URL = job.url
+                status_data.status = Downloader.Status.ERROR
+                self.progress.notify(status_data)
 
-		self.queue.task_done()
-		self.queue.put(self.CANCEL)
+        self.queue.task_done()
+        self.queue.put(self.CANCEL)
 
-		for job in iter(self.queue.get, self.CANCEL):
-			job.cancel()
-			self.queue.task_done()
+        for job in iter(self.queue.get, self.CANCEL):
+            job.cancel()
+            self.queue.task_done()
 
-		self.queue.task_done()
+        self.queue.task_done()
 
-	def add(self, callback, url):
-		'''Add new task to queue'''
-		status_data = Downloader.ClipData()
-		status_data.URL = url
-		status_data.status = Downloader.Status.PENDING
-		self.queue.put(Job(callback, url))
-		self.progress.notify(status_data)
+    def add(self, callback, url):
+        '''Add new task to queue'''
+        status_data = Downloader.ClipData()
+        status_data.URL = url
+        status_data.status = Downloader.Status.PENDING
+        self.queue.put(Job(callback, url))
+        self.progress.notify(status_data)
 
-	def destroy(self):
-		'''Cancel tasks queue'''
-		self.queue.put(self.QUIT)
-		self.queue.join()
-		
-	def getSongs(self):
-		return songs
+    def destroy(self):
+        '''Cancel tasks queue'''
+        self.queue.put(self.QUIT)
+        self.queue.join()
+
+    def getSongs(self):
+        return songs
 
 
 class Job:
     '''Task: clip to download'''
+
     def __init__(self, callback, url):
         self.callback = callback
         self.url = url
